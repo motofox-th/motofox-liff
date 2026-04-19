@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ฟอร์มช่าง MOTOFOX</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; min-height: 100vh; }
+.container { max-width: 400px; margin: 0 auto; padding: 20px; }
+.header { background: #1a1a2e; color: white; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 18px; }
+.header .mechanic { font-size: 12px; opacity: 0.7; }
+.card { background: white; border-radius: 14px; padding: 18px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.card h2 { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+.field input, .field select, .field textarea { width: 100%; height: 42px; border: 1.5px solid #e0e0e0; border-radius: 8px; padding: 0 12px; font-size: 14px; font-family: 'Sarabun', sans-serif; }
+.field textarea { height: 70px; padding: 10px 12px; resize: none; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #1a1a2e; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.queue-item { background: #f8f9ff; border: 1.5px solid #e0e4ff; border-radius: 10px; padding: 12px; margin-bottom: 8px; cursor: pointer; }
+.queue-item.selected { border-color: #1a1a2e; background: #f0f1ff; }
+.queue-time { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.queue-name { font-size: 13px; color: #555; }
+.queue-service { font-size: 12px; color: #888; }
+.btn { width: 100%; height: 48px; background: #1a1a2e; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: 'Sarabun', sans-serif; cursor: pointer; margin-top: 4px; }
+.btn-outline { background: white; color: #1a1a2e; border: 1.5px solid #1a1a2e; margin-top: 8px; }
+.loading { text-align: center; padding: 60px 20px; color: #666; }
+.success { text-align: center; padding: 30px; }
+.success .icon { font-size: 50px; margin-bottom: 12px; }
+.tab-bar { display: flex; background: white; border-radius: 10px; padding: 4px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.tab { flex: 1; text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; cursor: pointer; color: #666; }
+.tab.active { background: #1a1a2e; color: white; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>🔧 ฟอร์มช่าง</h1>
+      <div class="mechanic" id="mechanic-name">กำลังโหลด...</div>
+    </div>
+    <div style="font-size:24px;">🦊</div>
+  </div>
+
+  <div id="loading" class="loading">กำลังโหลด...</div>
+
+  <div id="main-section" style="display:none;">
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('queue')">คิววันนี้</div>
+      <div class="tab" onclick="showTab('job')">บันทึกงาน</div>
+    </div>
+
+    <!-- คิววันนี้ -->
+    <div id="tab-queue">
+      <div class="card">
+        <h2>📋 คิววันนี้</h2>
+        <div id="queue-list"><div style="color:#999;text-align:center;padding:20px;">ไม่มีคิววันนี้</div></div>
+      </div>
+    </div>
+
+    <!-- บันทึกงาน -->
+    <div id="tab-job" style="display:none;">
+      <div class="card">
+        <h2>👤 ข้อมูลลูกค้า</h2>
+        <div class="field">
+          <label>เบอร์โทร / Member ID</label>
+          <input type="text" id="customer-search" placeholder="08X-XXX-XXXX หรือ MSP-XXXXX">
+        </div>
+        <button class="btn btn-outline" onclick="searchMember()" style="height:40px;font-size:13px;">ค้นหาสมาชิก</button>
+        <div id="member-result" style="margin-top:10px;display:none;">
+          <div style="background:#f0f9f0;border-radius:8px;padding:10px;font-size:13px;" id="member-info"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🏍️ ข้อมูลรถ</h2>
+        <div class="row2">
+          <div class="field"><label>ยี่ห้อ</label>
+            <select id="bike-brand">
+              <option>Honda</option><option>Yamaha</option><option>Kawasaki</option>
+              <option>Suzuki</option><option>Royal Enfield</option><option>อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field"><label>รุ่น</label><input type="text" id="bike-model" placeholder="Wave 125i"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>ปี</label><input type="text" id="bike-year" placeholder="2023"></div>
+          <div class="field"><label>ทะเบียน</label><input type="text" id="plate-no" placeholder="กข 1234"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🔧 รายการงาน</h2>
+        <div class="field">
+          <label>รายการซ่อม / ติดตั้ง</label>
+          <textarea id="service-detail" placeholder="เช่น เปลี่ยนโซ่-สเตอร์, ผ้าเบรกหน้า-หลัง"></textarea>
+        </div>
+        <div class="field">
+          <label>วันหมดประกัน (ถ้ามี)</label>
+          <input type="date" id="warranty-date">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>URL รูปก่อนซ่อม</label>
+            <input type="text" id="photo-before" placeholder="https://...">
+          </div>
+          <div class="field">
+            <label>URL รูปหลังซ่อม</label>
+            <input type="text" id="photo-after" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="saveJob()">บันทึกงาน</button>
+    </div>
+  </div>
+
+  <div id="success-section" class="card success" style="display:none;">
+    <div class="icon">✅</div>
+    <h2 style="font-size:18px;color:#1a1a2e;">บันทึกงานสำเร็จ!</h2>
+    <p style="color:#666;margin-top:8px;font-size:14px;">ระบบส่งสรุปให้ลูกค้าทาง LINE แล้ว</p>
+    <button class="btn" style="margin-top:20px;" onclick="resetForm()">บันทึกงานใหม่</button>
+  </div>
+</div>
+
+<script>
+const LIFF_ID = '2009830082-LRONgMyI';
+const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+let mechanicProfile = null;
+let selectedMember = null;
+
+async function init() {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  mechanicProfile = await liff.getProfile();
+  document.getElementById('mechanic-name').textContent = '👷 ' + mechanicProfile.displayName;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main-section').style.display = 'block';
+  loadTodayQueue();
+}
+
+function showTab(tab) {
+  document.getElementById('tab-queue').style.display = tab === 'queue' ? 'block' : 'none';
+  document.getElementById('tab-job').style.display = tab === 'job' ? 'block' : 'none';
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'queue') || (i === 1 && tab === 'job'));
+  });
+}
+
+async function loadTodayQueue() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await fetch(SCRIPT_URL + '?action=queue&date=' + today);
+    const queues = await res.json();
+    const list = document.getElementById('queue-list');
+    if (!queues || queues.length === 0) return;
+    list.innerHTML = queues.map(q => `
+      <div class="queue-item" onclick="selectQueue('${q.member_id}','${q.display_name}','${q.phone}','${q.service_type}')">
+        <div class="queue-time">⏰ ${q.booking_time} น.</div>
+        <div class="queue-name">👤 ${q.display_name}</div>
+        <div class="queue-service">🔧 ${q.service_type}</div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+function selectQueue(memberId, name, phone, service) {
+  showTab('job');
+  document.getElementById('customer-search').value = phone;
+  document.getElementById('service-detail').value = service;
+  selectedMember = { member_id: memberId, display_name: name, phone: phone };
+  document.getElementById('member-info').textContent = '✅ ' + name + ' (' + phone + ')';
+  document.getElementById('member-result').style.display = 'block';
+}
+
+async function searchMember() {
+  const query = document.getElementById('customer-search').value.trim();
+  if (!query) return;
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=search_member&query=' + query);
+    const member = await res.json();
+    if (member) {
+      selectedMember = member;
+      document.getElementById('member-info').textContent = '✅ ' + member.display_name + ' (' + member.phone + ') — ' + member.member_id;
+      document.getElementById('member-result').style.display = 'block';
+    } else {
+      alert('ไม่พบสมาชิก');
+    }
+  } catch(e) { alert('เกิดข้อผิดพลาด'); }
+}
+
+async function saveJob() {
+  if (!selectedMember) { alert('กรุณาค้นหาสมาชิกก่อน'); return; }
+  const service = document.getElementById('service-detail').value.trim();
+  if (!service) { alert('กรุณาใส่รายการงาน'); return; }
+
+  const jobId = 'JB-' + String(Date.now()).slice(-6);
+  const data = {
+    action: 'save_job',
+    job_id: jobId,
+    member_id: selectedMember.member_id,
+    line_uid: selectedMember.line_uid || '',
+    display_name: selectedMember.display_name,
+    phone: selectedMember.phone,
+    bike_brand: document.getElementById('bike-brand').value,
+    bike_model: document.getElementById('bike-model').value,
+    bike_year: document.getElementById('bike-year').value,
+    plate_no: document.getElementById('plate-no').value,
+    service_detail: service,
+    warranty_date: document.getElementById('warranty-date').value,
+    photo_before_url: document.getElementById('photo-before').value,
+    photo_after_url: document.getElementById('photo-after').value,
+    mechanic_name: mechanicProfile.displayName,
+    job_date: new Date().toLocaleDateString('th-TH'),
+    status: 'รอชำระเงิน'
+  };
+
+  try {
+    await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+    document.getElementById('main-section').style.display = 'none';
+    document.getElementById('success-section').style.display = 'block';
+  } catch(e) { alert('เกิดข้อผิดพลาด กรุณาลองใหม่'); }
+}
+
+function resetForm() {
+  selectedMember = null;
+  document.getElementById('success-section').style.display = 'none';
+  document.getElementById('main-section').style.display = 'block';
+  document.getElementById('customer-search').value = '';
+  document.getElementById('service-detail').value = '';
+  document.getElementById('member-result').style.display = 'none';
+  showTab('queue');
+}
+
+init();
+</script>
+</body>
+</html>
