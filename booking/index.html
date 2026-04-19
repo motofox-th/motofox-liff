@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จองคิว MOTOFOX</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; min-height: 100vh; }
+.container { max-width: 400px; margin: 0 auto; padding: 20px; }
+.logo { text-align: center; padding: 30px 0 20px; }
+.logo h1 { font-size: 24px; color: #1a1a2e; font-weight: 700; }
+.logo p { color: #666; font-size: 14px; margin-top: 4px; }
+.card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px; }
+.card h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 20px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+.field input, .field select, .field textarea { width: 100%; height: 48px; border: 1.5px solid #e0e0e0; border-radius: 10px; padding: 0 14px; font-size: 15px; font-family: 'Sarabun', sans-serif; }
+.field textarea { height: 80px; padding: 12px 14px; resize: none; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #1a1a2e; }
+.btn { width: 100%; height: 50px; background: #1a1a2e; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; font-family: 'Sarabun', sans-serif; cursor: pointer; }
+.success { text-align: center; padding: 30px 20px; }
+.success .icon { font-size: 60px; margin-bottom: 16px; }
+.success h2 { font-size: 20px; color: #1a1a2e; margin-bottom: 8px; }
+.success .detail { background: #f0f4ff; border-radius: 10px; padding: 16px; margin: 16px 0; text-align: left; font-size: 14px; line-height: 2; }
+.loading { text-align: center; padding: 60px 20px; color: #666; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>🦊 MOTOFOX</h1>
+    <p>ศูนย์บริการมอเตอร์ไซค์</p>
+  </div>
+
+  <div id="loading" class="loading">กำลังโหลด...</div>
+
+  <div id="form-section" style="display:none;">
+    <div class="card">
+      <h2>📅 จองคิว</h2>
+      <div class="field">
+        <label>วันที่ต้องการเข้ารับบริการ</label>
+        <input type="date" id="booking-date" min="">
+      </div>
+      <div class="field">
+        <label>เวลา</label>
+        <select id="booking-time">
+          <option value="">เลือกเวลา</option>
+          <option>08:00</option><option>09:00</option><option>10:00</option>
+          <option>11:00</option><option>12:00</option><option>13:00</option>
+          <option>14:00</option><option>15:00</option><option>16:00</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ประเภทงานที่ต้องการ</label>
+        <select id="service-type">
+          <option value="">เลือกประเภทงาน</option>
+          <option>เปลี่ยนน้ำมันเครื่อง</option>
+          <option>เปลี่ยนยาง</option>
+          <option>เบรก / ผ้าเบรก</option>
+          <option>โซ่ / สเตอร์</option>
+          <option>สปาร์คปลั๊ก</option>
+          <option>ช่วงล่าง / โช้คอัพ</option>
+          <option>ไฟ / ระบบไฟฟ้า</option>
+          <option>ตรวจเช็คทั่วไป</option>
+          <option>อื่นๆ</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+        <textarea id="note" placeholder="เช่น อาการผิดปกติ หรือสิ่งที่ต้องการแจ้งช่าง"></textarea>
+      </div>
+      <button class="btn" onclick="booking()">ยืนยันการจอง</button>
+    </div>
+  </div>
+
+  <div id="success-section" class="card success" style="display:none;">
+    <div class="icon">✅</div>
+    <h2>จองคิวสำเร็จ!</h2>
+    <div class="detail" id="booking-detail"></div>
+    <p style="color:#666;font-size:13px;">ระบบจะส่งการแจ้งเตือนทาง LINE ก่อนวันนัด</p>
+  </div>
+</div>
+
+<script>
+const LIFF_ID = '2009830082-P0JuSjxw';
+const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+let lineProfile = null;
+
+async function init() {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('booking-date').min = tomorrow.toISOString().split('T')[0];
+
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  lineProfile = await liff.getProfile();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form-section').style.display = 'block';
+}
+
+async function booking() {
+  const date = document.getElementById('booking-date').value;
+  const time = document.getElementById('booking-time').value;
+  const service = document.getElementById('service-type').value;
+  const note = document.getElementById('note').value;
+
+  if (!date || !time || !service) { alert('กรุณากรอกข้อมูลให้ครบ'); return; }
+
+  const bookingId = 'BK-' + String(Date.now()).slice(-6);
+  const data = {
+    action: 'booking',
+    booking_id: bookingId,
+    line_uid: lineProfile.userId,
+    display_name: lineProfile.displayName,
+    booking_date: date,
+    booking_time: time,
+    service_type: service,
+    note: note,
+    status: 'รอดำเนินการ'
+  };
+
+  try {
+    await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+    document.getElementById('form-section').style.display = 'none';
+    document.getElementById('booking-detail').innerHTML =
+      '📅 วัน: ' + date + '<br>' +
+      '⏰ เวลา: ' + time + ' น.<br>' +
+      '🔧 งาน: ' + service +
+      (note ? '<br>📝 หมายเหตุ: ' + note : '');
+    document.getElementById('success-section').style.display = 'block';
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
