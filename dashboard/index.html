@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard MOTOFOX</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; min-height: 100vh; }
+.container { max-width: 400px; margin: 0 auto; padding: 20px; }
+.header { background: #1a1a2e; color: white; border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.header h1 { font-size: 20px; margin-bottom: 4px; }
+.header p { font-size: 13px; opacity: 0.7; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.stat-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.stat-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+.stat-unit { font-size: 13px; color: #888; font-weight: 400; }
+.card { background: white; border-radius: 14px; padding: 18px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.card h2 { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 14px; }
+.queue-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.queue-row:last-child { border-bottom: none; }
+.queue-time { color: #1a1a2e; font-weight: 600; min-width: 60px; }
+.queue-name { color: #444; flex: 1; padding: 0 8px; }
+.queue-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #fff3e0; color: #e65100; }
+.queue-status.done { background: #e8f5e9; color: #2e7d32; }
+.stock-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.stock-row:last-child { border-bottom: none; }
+.stock-name { color: #444; }
+.stock-qty { font-weight: 600; }
+.stock-qty.low { color: #e53935; }
+.review-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.stars { color: #f59e0b; }
+.loading { text-align: center; padding: 60px 20px; color: #666; }
+.today-date { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🦊 MOTOFOX Dashboard</h1>
+    <div class="today-date" id="today-date"></div>
+    <p id="owner-name">กำลังโหลด...</p>
+  </div>
+
+  <div id="loading" class="loading">กำลังโหลดข้อมูล...</div>
+
+  <div id="content" style="display:none;">
+    <div class="grid2">
+      <div class="stat-card">
+        <div class="stat-label">💰 ยอดขายวันนี้</div>
+        <div class="stat-value" id="today-sales">0</div>
+        <div class="stat-unit">บาท</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">🔧 งานวันนี้</div>
+        <div class="stat-value" id="today-jobs">0</div>
+        <div class="stat-unit">คัน</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">📅 คิวพรุ่งนี้</div>
+        <div class="stat-value" id="tomorrow-queue">0</div>
+        <div class="stat-unit">คิว</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">⭐ คะแนนเฉลี่ย</div>
+        <div class="stat-value" id="avg-score">-</div>
+        <div class="stat-unit">/ 5</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📋 คิววันนี้</h2>
+      <div id="queue-list"><div style="color:#999;text-align:center;padding:10px;">ไม่มีคิว</div></div>
+    </div>
+
+    <div class="card">
+      <h2>⚠️ สต็อกใกล้หมด</h2>
+      <div id="stock-list"><div style="color:#999;text-align:center;padding:10px;">-</div></div>
+    </div>
+
+    <div class="card">
+      <h2>⭐ รีวิวล่าสุด</h2>
+      <div id="review-list"><div style="color:#999;text-align:center;padding:10px;">ยังไม่มีรีวิว</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LIFF_ID = '2009830082-3CQkFxiV';
+const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+async function init() {
+  const now = new Date();
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('th-TH', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  const profile = await liff.getProfile();
+  document.getElementById('owner-name').textContent = '👑 ' + profile.displayName;
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=dashboard');
+    const data = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    document.getElementById('today-sales').textContent = Number(data.today_sales || 0).toLocaleString();
+    document.getElementById('today-jobs').textContent = data.today_jobs || 0;
+    document.getElementById('tomorrow-queue').textContent = data.tomorrow_queue || 0;
+    document.getElementById('avg-score').textContent = data.avg_score || '-';
+
+    if (data.queues && data.queues.length > 0) {
+      document.getElementById('queue-list').innerHTML = data.queues.map(q => `
+        <div class="queue-row">
+          <span class="queue-time">${q.booking_time}</span>
+          <span class="queue-name">${q.display_name} — ${q.service_type}</span>
+          <span class="queue-status ${q.status === 'เสร็จสิ้น' ? 'done' : ''}">${q.status}</span>
+        </div>
+      `).join('');
+    }
+
+    if (data.low_stock && data.low_stock.length > 0) {
+      document.getElementById('stock-list').innerHTML = data.low_stock.map(s => `
+        <div class="stock-row">
+          <span class="stock-name">${s.name}</span>
+          <span class="stock-qty low">เหลือ ${s.qty} ${s.unit}</span>
+        </div>
+      `).join('');
+    }
+
+    if (data.reviews && data.reviews.length > 0) {
+      document.getElementById('review-list').innerHTML = data.reviews.map(r => `
+        <div class="review-row">
+          <span>${r.display_name}</span>
+          <span class="stars">${'⭐'.repeat(r.score)}</span>
+        </div>
+      `).join('');
+    }
+  } catch(e) {
+    document.getElementById('loading').textContent = 'ไม่สามารถโหลดข้อมูลได้';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
