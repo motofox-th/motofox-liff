@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ประวัติซ่อม MOTOFOX</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Sarabun', sans-serif; background: #f5f5f5; min-height: 100vh; }
+.container { max-width: 400px; margin: 0 auto; padding: 20px; }
+.logo { text-align: center; padding: 24px 0 16px; }
+.logo h1 { font-size: 22px; color: #1a1a2e; font-weight: 700; }
+.loading { text-align: center; padding: 60px 20px; color: #666; }
+.empty { text-align: center; padding: 60px 20px; color: #999; font-size: 15px; }
+.job-card { background: white; border-radius: 14px; padding: 18px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.job-date { font-size: 13px; color: #666; }
+.job-status { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: #e8f5e9; color: #2e7d32; }
+.job-bike { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.job-service { font-size: 13px; color: #555; margin-bottom: 10px; line-height: 1.6; }
+.job-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+.job-price { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+.warranty-badge { font-size: 11px; background: #fff3e0; color: #e65100; padding: 3px 8px; border-radius: 10px; }
+.photos { display: flex; gap: 8px; margin-top: 10px; }
+.photo-link { font-size: 12px; color: #1a73e8; text-decoration: none; background: #e8f0fe; padding: 4px 10px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>🦊 ประวัติการซ่อม</h1>
+  </div>
+  <div id="loading" class="loading">กำลังโหลด...</div>
+  <div id="content"></div>
+</div>
+
+<script>
+const LIFF_ID = '2009830082-JzrbLRMC';
+const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+async function init() {
+  await liff.init({ liffId: LIFF_ID });
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  const profile = await liff.getProfile();
+  loadHistory(profile.userId);
+}
+
+async function loadHistory(lineUid) {
+  try {
+    const res = await fetch(SCRIPT_URL + '?action=history&line_uid=' + lineUid);
+    const jobs = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    const content = document.getElementById('content');
+    if (!jobs || jobs.length === 0) {
+      content.innerHTML = '<div class="empty">ยังไม่มีประวัติการซ่อม</div>';
+      return;
+    }
+    content.innerHTML = jobs.map(job => `
+      <div class="job-card">
+        <div class="job-header">
+          <span class="job-date">📅 ${job.job_date}</span>
+          <span class="job-status">เสร็จสิ้น</span>
+        </div>
+        <div class="job-bike">🏍️ ${job.bike_brand} ${job.bike_model} (${job.bike_year})</div>
+        <div class="job-service">🔧 ${job.service_detail}</div>
+        <div class="job-footer">
+          <span class="job-price">${job.total_price ? '฿' + Number(job.total_price).toLocaleString() : '-'}</span>
+          ${job.warranty_date ? `<span class="warranty-badge">🛡️ ประกันถึง ${job.warranty_date}</span>` : ''}
+        </div>
+        ${job.photo_before_url || job.photo_after_url ? `
+        <div class="photos">
+          ${job.photo_before_url ? `<a href="${job.photo_before_url}" target="_blank" class="photo-link">📷 ก่อนซ่อม</a>` : ''}
+          ${job.photo_after_url ? `<a href="${job.photo_after_url}" target="_blank" class="photo-link">📷 หลังซ่อม</a>` : ''}
+        </div>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('loading').innerHTML = 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
