@@ -73,6 +73,17 @@ async function init() {
   if (!liff.isLoggedIn()) { liff.login(); return; }
   lineProfile = await liff.getProfile();
   document.getElementById('display-name').value = lineProfile.displayName;
+
+  // เช็คว่าสมัครแล้วหรือยัง
+  const checkRes = await fetch(SCRIPT_URL + '?action=search_member&query=' + lineProfile.userId);
+  const existing = await checkRes.json();
+  if (existing && existing.member_id) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('member-id-display').textContent = 'เลขสมาชิก: ' + existing.member_id;
+    document.getElementById('success-section').style.display = 'block';
+    return;
+  }
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('form-section').style.display = 'block';
 }
