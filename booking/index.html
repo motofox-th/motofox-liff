@@ -109,10 +109,16 @@ async function booking() {
 
   if (!date || !time || !service) { alert('กรุณากรอกข้อมูลให้ครบ'); return; }
 
+  // ดึง member_id จาก line_uid
+  const memberRes = await fetch(SCRIPT_URL + '?action=search_member&query=' + lineProfile.userId);
+  const member = await memberRes.json();
+  const memberId = member ? member.member_id : '';
+
   const bookingId = 'BK-' + String(Date.now()).slice(-6);
   const data = {
     action: 'booking',
     booking_id: bookingId,
+    member_id: memberId,
     line_uid: lineProfile.userId,
     display_name: lineProfile.displayName,
     booking_date: date,
@@ -122,6 +128,19 @@ async function booking() {
     status: 'รอดำเนินการ'
   };
 
+  try {
+    await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
+    document.getElementById('form-section').style.display = 'none';
+    document.getElementById('booking-detail').innerHTML =
+      '📅 วัน: ' + date + '<br>' +
+      '⏰ เวลา: ' + time + ' น.<br>' +
+      '🔧 งาน: ' + service +
+      (note ? '<br>📝 หมายเหตุ: ' + note : '');
+    document.getElementById('success-section').style.display = 'block';
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+  }
+}
   try {
     await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) });
     document.getElementById('form-section').style.display = 'none';
